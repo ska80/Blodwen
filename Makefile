@@ -43,10 +43,12 @@ install:
 	mkdir -p ${PREFIX}/blodwen/support/chez
 	mkdir -p ${PREFIX}/blodwen/support/chicken
 	mkdir -p ${PREFIX}/blodwen/support/racket
+	mkdir -p ${PREFIX}/blodwen/support/lispworks
 	make -C prelude install BLODWEN=../blodwen
 	make -C base install BLODWEN=../blodwen
 
-	install blodwen ${PREFIX}/bin
-	install support/chez/* ${PREFIX}/blodwen/support/chez
-	install support/chicken/* ${PREFIX}/blodwen/support/chicken
-	install support/racket/* ${PREFIX}/blodwen/support/racket
+	install --mode 755 blodwen ${PREFIX}/bin
+	install --mode 644 support/chez/* ${PREFIX}/blodwen/support/chez
+	install --mode 644 support/chicken/* ${PREFIX}/blodwen/support/chicken
+	install --mode 644 support/racket/* ${PREFIX}/blodwen/support/racket
+	install --mode 644 support/lispworks/* ${PREFIX}/blodwen/support/lispworks

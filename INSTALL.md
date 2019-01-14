@@ -1,6 +1,7 @@
 # Installation
 
-Blodwen is built using Idris, and provides support for three default code generation targets: Chez, Chicken, and Racket.
+Blodwen is built using Idris, and provides support for three default code generation targets: Chez,
+Chicken, Racket and LispWorks.
 
 ## Idris
 
@@ -36,3 +37,9 @@ After installing chicken scheme you may need to install the 'numbers' package.
 Racket is available from:
 
 + https://download.racket-lang.org/
+
+### LispWorks
+
+LispWorks is available from:
+
++ http://lispworks.com
