@@ -47,8 +47,8 @@ install:
 	make -C prelude install BLODWEN=../blodwen
 	make -C base install BLODWEN=../blodwen
 
-	install --mode 755 blodwen ${PREFIX}/bin
-	install --mode 644 support/chez/* ${PREFIX}/blodwen/support/chez
-	install --mode 644 support/chicken/* ${PREFIX}/blodwen/support/chicken
-	install --mode 644 support/racket/* ${PREFIX}/blodwen/support/racket
-	install --mode 644 support/lispworks/* ${PREFIX}/blodwen/support/lispworks
+	install -m 755 blodwen ${PREFIX}/bin
+	install -m 644 support/chez/* ${PREFIX}/blodwen/support/chez
+	install -m 644 support/chicken/* ${PREFIX}/blodwen/support/chicken
+	install -m 644 support/racket/* ${PREFIX}/blodwen/support/racket
+	install -m 644 support/lispworks/* ${PREFIX}/blodwen/support/lispworks
