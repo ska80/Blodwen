@@ -11,6 +11,8 @@ import Core.TT
 import Data.List
 import Data.Vect
 
+%default covering
+
 lspString : String -> String
 lspString s = concatMap okchar (unpack s)
   where
@@ -91,9 +93,11 @@ lspOp (GT ty) [x, y] = boolop ">" [x, y]
 lspOp StrLength [x] = op "length" [x]
 lspOp StrHead [x] = op "char" [x, "0"]
 lspOp StrTail [x] = op "subseq" [x, "1", op "length" [x]]
+lspOp StrIndex [x, i] = op "char" [x, i]
 lspOp StrCons [x, y] = op "blodwen-rts:string-cons" [x, y]
 lspOp StrAppend [x, y] = op "blodwen-rts:string-append" [x, y]
 lspOp StrReverse [x] = op "blodwen-rts:string-reverse" [x]
+lspOp StrSubstr [x, y, z] = op "blodwen-rts:string-substr" [x, y, z]
 
 lspOp (Cast IntType StringType) [x] = op "princ-to-string" [x]
 lspOp (Cast IntegerType StringType) [x] = op "princ-to-string" [x]

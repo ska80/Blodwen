@@ -17,6 +17,7 @@
    #:string-cons
    #:string-append
    #:string-reverse
+   #:string-substr
 
    #:get-tag
 
@@ -108,6 +109,13 @@
 
 (defun string-reverse (x)
   (reverse x))
+
+(defun string-substr (off len s)
+  (let* ((l (length s))
+         (b (max 0 off))
+         (x (max 0 len))
+         (end (min l (+ b x))))
+    (subseq s b end)))
 
 (defun either-left (x)
   (vector 0 nil nil x))
