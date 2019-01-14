@@ -68,22 +68,29 @@
 
 (setq *read-default-float-format* 'double-float)
 
+(declaim (ftype (function (simple-vector) list) blodwen-read-args))
 (defun blodwen-read-args (desc)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type simple-vector desc))
   (case (svref desc 0)
     ((0) '())
     ((1) (cons (svref desc 2)
                (blodwen-read-args (svref desc 3))))))
 
 (defun b+ (x y bits)
+  (declare (optimize speed (safety 0) (debug 1)))
   (mod (+ x y) (expt 2 bits)))
 
 (defun b- (x y bits)
+  (declare (optimize speed (safety 0) (debug 1)))
   (mod (- x y) (expt 2 bits)))
 
 (defun b* (x y bits)
+  (declare (optimize speed (safety 0) (debug 1)))
   (mod (* x y) (expt 2 bits)))
 
 (defun b/ (x y bits)
+  (declare (optimize speed (safety 0) (debug 1)))
   (mod (/ x y) (expt 2 bits)))
 
 (defun cast-string-int (x)
@@ -98,29 +105,49 @@
     (parse-error ()
       0.0d0)))
 
+(declaim (ftype (function ((or symbol string) string) string) string-cons))
 (defun string-cons (x y)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type (or symbol string) x)
+           (type string y))
   (lw:string-append x y))
 
+(declaim (ftype (function (string string) string) string-append))
 (defun string-append (x y)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type string x y))
   (lw:string-append x y))
 
-(defun get-tag (x)
-  (svref x 0))
-
+(declaim (ftype (function (string) string) string-reverse))
 (defun string-reverse (x)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type string x))
   (reverse x))
 
+(declaim (ftype (function (fixnum fixnum string) string) string-substr))
 (defun string-substr (off len s)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type fixnum off len)
+           (type string s))
   (let* ((l (length s))
          (b (max 0 off))
          (x (max 0 len))
-         (end (min l (+ b x))))
+         (end (min l (the fixnum (+ b x)))))
+    (declare (type fixnum l b x end))
     (subseq s b end)))
 
+(declaim (ftype (function (simple-vector) t) get-tag))
+(defun get-tag (x)
+  (declare (optimize speed (safety 0) (debug 1))
+           (type simple-vector x))
+  (svref x 0))
+
 (defun either-left (x)
+  (declare (optimize speed (safety 0) (debug 1)))
   (vector 0 nil nil x))
 
 (defun either-right (x)
+  (declare (optimize speed (safety 0) (debug 1)))
   (vector 1 nil nil x))
 
 ;;; Delay/Force
