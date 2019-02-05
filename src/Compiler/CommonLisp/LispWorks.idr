@@ -11,6 +11,7 @@ import Core.Name
 import Core.Options
 import Core.TT
 
+import Data.CMap
 import Data.List
 import Data.Vect
 import System
@@ -78,33 +79,33 @@ mutual
   getFArgs (CCon _ 1 [ty, val, rest]) = pure $ (ty, val) :: !(getFArgs rest)
   getFArgs arg = throw (InternalError ("Badly formed c call argument list " ++ show arg))
 
-  lispworksExtPrim : SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
-  lispworksExtPrim vs CCall [ret, CPrimVal (Str fn), fargs, world]
+  lispworksExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
+  lispworksExtPrim i vs CCall [ret, CPrimVal (Str fn), fargs, world]
       = do args <- getFArgs fargs
            argTypes <- traverse tySpec (map fst args)
            retType <- tySpec ret
-           argsc <- traverse (lspExp lispworksExtPrim vs) (map snd args)
+           argsc <- traverse (lspExp lispworksExtPrim 0 vs) (map snd args)
            pure $ handleRet retType ("((foreign-procedure #f " ++ show fn ++ " ("
                     ++ showSep " " argTypes ++ ") " ++ retType ++ ") "
                     ++ showSep " " argsc ++ ")")
-  lispworksExtPrim vs CCall [ret, fn, args, world]
+  lispworksExtPrim i vs CCall [ret, fn, args, world]
       = pure "(error \"bad ffi call\")"
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
-  lispworksExtPrim vs GetStr [world]
+  lispworksExtPrim i vs GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
-  lispworksExtPrim vs prim args
-      = lspExtCommon lispworksExtPrim vs prim args
+  lispworksExtPrim i vs prim args
+      = lspExtCommon lispworksExtPrim i vs prim args
 
 compileToSS : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core annot ()
 compileToSS c tm outfile
     = do ds <- getDirectives LispWorks
          let libs = findLibs ds
-         ns <- findUsedNames tm
+         (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          compdefs <- traverse (getLisp lispworksExtPrim defs) ns
          let code = concat compdefs
-         main <- lspExp lispworksExtPrim [] !(compileExp tm)
+         main <- lspExp lispworksExtPrim 0 [] !(compileExp tags tm)
          lispworks <- coreLift findLispWorks
          support <- readDataFile "lispworks/support.lisp"
          let lsp = lspHeader lispworks libs ++ support ++ code ++ main ++ lspFooter

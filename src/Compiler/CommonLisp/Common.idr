@@ -184,13 +184,13 @@ lspCaseDef : Maybe String -> String
 lspCaseDef Nothing = ""
 lspCaseDef (Just tm) = "(otherwise " ++ tm ++ ")"
 
-parameters (lspExtPrim : {vars : _} -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String)
+parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String)
   mutual
-    lspConAlt : SVars vars -> String -> CConAlt vars -> Core annot String
-    lspConAlt {vars} vs target (MkConAlt n tag args sc)
+    lspConAlt : Int -> SVars vars -> String -> CConAlt vars -> Core annot String
+    lspConAlt {vars} i vs target (MkConAlt n tag args sc)
         = let vs' = extendSVars args vs in
               pure $ "((" ++ show tag ++ ") "
-                          ++ bindArgs 1 args vs' !(lspExp vs' sc) ++ ")"
+                          ++ bindArgs 1 args vs' !(lspExp i vs' sc) ++ ")"
       where
         bindArgs : Int -> (ns : List Name) -> SVars (ns ++ vars) -> String -> String
         bindArgs i [] vs body = body
@@ -198,60 +198,62 @@ parameters (lspExtPrim : {vars : _} -> SVars vars -> ExtPrim -> List (CExp vars)
             = "(let ((" ++ v ++ " " ++ "(svref " ++ target ++ " " ++ show i ++ "))) "
                     ++ bindArgs (i + 1) ns vs body ++ ")"
 
-    lspConstAlt : SVars vars -> String -> CConstAlt vars -> Core annot String
-    lspConstAlt vs target (MkConstAlt c exp)
-        = pure $ "((equal " ++ target ++ " " ++ lspConstant c ++ ") " ++ !(lspExp vs exp) ++ ")"
+    lspConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core annot String
+    lspConstAlt i vs target (MkConstAlt c exp)
+        = pure $ "((equal " ++ target ++ " " ++ lspConstant c ++ ") " ++ !(lspExp i vs exp) ++ ")"
 
     -- oops, no traverse for Vect in Core
-    lspArgs : SVars vars -> Vect n (CExp vars) -> Core annot (Vect n String)
-    lspArgs vs [] = pure []
-    lspArgs vs (arg :: args) = pure $ !(lspExp vs arg) :: !(lspArgs vs args)
+    lspArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core annot (Vect n String)
+    lspArgs i vs [] = pure []
+    lspArgs i vs (arg :: args) = pure $ !(lspExp i vs arg) :: !(lspArgs i vs args)
 
     export
-    lspExp : SVars vars -> CExp vars -> Core annot String
-    lspExp vs (CLocal el) = pure $ lookupSVar el vs
-    lspExp vs (CRef n) = pure $ lspName n
-    lspExp vs (CLam x sc)
+    lspExp : Int -> SVars vars -> CExp vars -> Core annot String
+    lspExp i vs (CLocal el) = pure $ lookupSVar el vs
+    lspExp i vs (CRef n) = pure $ lspName n
+    lspExp i vs (CLam x sc)
        = do let vs' = extendSVars [x] vs
-            sc' <- lspExp vs' sc
+            sc' <- lspExp i vs' sc
             pure $ "#'(lambda (" ++ lookupSVar Here vs' ++ ") " ++ sc' ++ ")"
-    lspExp vs (CLet x val sc)
+    lspExp i vs (CLet x val sc)
        = do let vs' = extendSVars [x] vs
-            val' <- lspExp vs val
-            sc' <- lspExp vs' sc
+            val' <- lspExp i vs val
+            sc' <- lspExp i vs' sc
             pure $ "(let ((" ++ lookupSVar Here vs' ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
-    lspExp vs (CApp x [])
-        = pure $ "(" ++ !(lspExp vs x) ++ ")"
-    lspExp vs (CApp x args)
-        = pure $ "(" ++ !(lspExp vs x) ++ " " ++ showSep " " !(traverse (lspExp vs) args) ++ ")"
-    lspExp vs (CCon x tag args)
-        = pure $ lspConstructor tag !(traverse (lspExp vs) args)
-    lspExp vs (COp op args)
-        = pure $ lspOp op !(lspArgs vs args)
-    lspExp vs (CExtPrim p args)
-        = lspExtPrim vs (toPrim p) args
-    lspExp vs (CForce t) = pure $ "(blodwen-rts:force " ++ !(lspExp vs t) ++ ")"
-    lspExp vs (CDelay t) = pure $ "(blodwen-rts:delay " ++ !(lspExp vs t) ++ ")"
-    lspExp vs (CConCase sc alts def)
-        = do tcode <- lspExp vs sc
-             defc <- maybe (pure Nothing) (\v => pure (Just !(lspExp vs v))) def
-             pure $ "(let ((sc " ++ tcode ++ ")) (case (get-tag sc) "
-                     ++ showSep " " !(traverse (lspConAlt vs "sc") alts)
+    lspExp i vs (CApp x [])
+        = pure $ "(" ++ !(lspExp i vs x) ++ ")"
+    lspExp i vs (CApp x args)
+        = pure $ "(" ++ !(lspExp i vs x) ++ " " ++ showSep " " !(traverse (lspExp i vs) args) ++ ")"
+    lspExp i vs (CCon x tag args)
+        = pure $ lspConstructor tag !(traverse (lspExp i vs) args)
+    lspExp i vs (COp op args)
+        = pure $ lspOp op !(lspArgs i vs args)
+    lspExp i vs (CExtPrim p args)
+        = lspExtPrim i vs (toPrim p) args
+    lspExp i vs (CForce t) = pure $ "(blodwen-rts:force " ++ !(lspExp i vs t) ++ ")"
+    lspExp i vs (CDelay t) = pure $ "(blodwen-rts:delay " ++ !(lspExp i vs t) ++ ")"
+    lspExp i vs (CConCase sc alts def)
+        = do tcode <- lspExp (i+1) vs sc
+             defc <- maybe (pure Nothing) (\v => pure (Just !(lspExp i vs v))) def
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (get-tag " ++ n ++ ") "
+                     ++ showSep " " !(traverse (lspConAlt (i+1) vs n) alts)
                      ++ lspCaseDef defc ++ "))"
-    lspExp vs (CConstCase sc alts def)
-        = do defc <- maybe (pure Nothing) (\v => pure (Just !(lspExp vs v))) def
-             tcode <- lspExp vs sc
-             pure $ "(let ((sc " ++ tcode ++ ")) (cond " -- ++ !(lspExp vs sc) ++ " "
-                      ++ showSep " " !(traverse (lspConstAlt vs "sc") alts)
+    lspExp i vs (CConstCase sc alts def)
+        = do defc <- maybe (pure Nothing) (\v => pure (Just !(lspExp i vs v))) def
+             tcode <- lspExp (i+1) vs sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (cond "
+                      ++ showSep " " !(traverse (lspConstAlt (i+1) vs n) alts)
                       ++ lspCaseDef defc ++ "))"
-    lspExp vs (CPrimVal c) = pure $ lspConstant c
-    lspExp vs CErased = pure "'()"
-    lspExp vs (CCrash msg) = pure $ "(error " ++ show msg ++ ")"
+    lspExp i vs (CPrimVal c) = pure $ lspConstant c
+    lspExp i vs CErased = pure "'()"
+    lspExp i vs (CCrash msg) = pure $ "(error " ++ show msg ++ ")"
 
   -- Need to convert the argument (a list of CL arguments that may
   -- have been constructed at run time) to a CL list to be passed to apply
-  readArgs : SVars vars -> CExp vars -> Core annot String
-  readArgs vs tm = pure $ "(blodwen-rts:blodwen-read-args " ++ !(lspExp vs tm) ++ ")"
+  readArgs : Int -> SVars vars -> CExp vars -> Core annot String
+  readArgs i vs tm = pure $ "(blodwen-rts:blodwen-read-args " ++ !(lspExp i vs tm) ++ ")"
 
   fileOp : String -> String
   fileOp op = "(blodwen-rts:blodwen-file-op #'(lambda () " ++ op ++ "))"
@@ -259,43 +261,43 @@ parameters (lspExtPrim : {vars : _} -> SVars vars -> ExtPrim -> List (CExp vars)
   -- External primitives which are common to the CL codegens (they can be
   -- overridden)
   export
-  lspExtCommon : SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
-  lspExtCommon vs LispCall [ret, CPrimVal (Str fn), args, world]
+  lspExtCommon : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
+  lspExtCommon i vs LispCall [ret, CPrimVal (Str fn), args, world]
      = pure $ mkWorld ("(apply " ++ fn ++" "
-                  ++ !(readArgs vs args) ++ ")")
-  lspExtCommon vs LispCall [ret, fn, args, world]
-       = pure $ mkWorld ("(apply (eval (make-symbol " ++ !(lspExp vs fn) ++")) "
-                    ++ !(readArgs vs args) ++ ")")
-  lspExtCommon vs PutStr [arg, world]
-      = pure $ "(princ " ++ !(lspExp vs arg) ++ ") " ++ mkWorld (lspConstructor 0 []) -- code for MkUnit
-  lspExtCommon vs GetStr [world]
+                  ++ !(readArgs i vs args) ++ ")")
+  lspExtCommon i vs LispCall [ret, fn, args, world]
+       = pure $ mkWorld ("(apply (eval (make-symbol " ++ !(lspExp i vs fn) ++")) "
+                    ++ !(readArgs i vs args) ++ ")")
+  lspExtCommon i vs PutStr [arg, world]
+      = pure $ "(princ " ++ !(lspExp i vs arg) ++ ") " ++ mkWorld (lspConstructor 0 []) -- code for MkUnit
+  lspExtCommon i vs GetStr [world]
       = pure $ mkWorld "(read-line)"
-  lspExtCommon vs FileOpen [file, mode, bin, world]
+  lspExtCommon i vs FileOpen [file, mode, bin, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-rts:blodwen-open-stream "
-                                      ++ !(lspExp vs file) ++ " "
-                                      ++ !(lspExp vs mode) ++ " "
-                                      ++ !(lspExp vs bin) ++ ")"
-  lspExtCommon vs FileClose [file, world]
-      = pure $ "(blodwen-rts:blodwen-close-stream " ++ !(lspExp vs file) ++ ") " ++ mkWorld (lspConstructor 0 [])
-  lspExtCommon vs FileReadLine [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-rts:blodwen-get-line " ++ !(lspExp vs file) ++ ")"
-  lspExtCommon vs FileWriteLine [file, str, world]
+                                      ++ !(lspExp i vs file) ++ " "
+                                      ++ !(lspExp i vs mode) ++ " "
+                                      ++ !(lspExp i vs bin) ++ ")"
+  lspExtCommon i vs FileClose [file, world]
+      = pure $ "(blodwen-rts:blodwen-close-stream " ++ !(lspExp i vs file) ++ ") " ++ mkWorld (lspConstructor 0 [])
+  lspExtCommon i vs FileReadLine [file, world]
+      = pure $ mkWorld $ fileOp $ "(blodwen-rts:blodwen-get-line " ++ !(lspExp i vs file) ++ ")"
+  lspExtCommon i vs FileWriteLine [file, str, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-rts:blodwen-putstring "
-                                        ++ !(lspExp vs file) ++ " "
-                                        ++ !(lspExp vs str) ++ ")"
-  lspExtCommon vs FileEOF [file, world]
-      = pure $ mkWorld $ "(blodwen-rts:blodwen-eof " ++ !(lspExp vs file) ++ ")"
-  lspExtCommon vs NewIORef [_, val, world]
-      = pure $ mkWorld $ "(blodwen-rts:box " ++ !(lspExp vs val) ++ ")"
-  lspExtCommon vs ReadIORef [_, ref, world]
-      = pure $ mkWorld $ "(blodwen-rts:unbox " ++ !(lspExp vs ref) ++ ")"
-  lspExtCommon vs WriteIORef [_, ref, val, world]
+                                        ++ !(lspExp i vs file) ++ " "
+                                        ++ !(lspExp i vs str) ++ ")"
+  lspExtCommon i vs FileEOF [file, world]
+      = pure $ mkWorld $ "(blodwen-rts:blodwen-eof " ++ !(lspExp i vs file) ++ ")"
+  lspExtCommon i vs NewIORef [_, val, world]
+      = pure $ mkWorld $ "(blodwen-rts:box " ++ !(lspExp i vs val) ++ ")"
+  lspExtCommon i vs ReadIORef [_, ref, world]
+      = pure $ mkWorld $ "(blodwen-rts:unbox " ++ !(lspExp i vs ref) ++ ")"
+  lspExtCommon i vs WriteIORef [_, ref, val, world]
       = pure $ mkWorld $ "(blodwen-rts:set-box "
-                           ++ !(lspExp vs ref) ++ " "
-                           ++ !(lspExp vs val) ++ ")"
-  lspExtCommon vs (Unknown n) args
+                           ++ !(lspExp i vs ref) ++ " "
+                           ++ !(lspExp i vs val) ++ ")"
+  lspExtCommon i vs (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
-  lspExtCommon vs prim args
+  lspExtCommon i vs prim args
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
@@ -308,15 +310,15 @@ parameters (lspExtPrim : {vars : _} -> SVars vars -> ExtPrim -> List (CExp vars)
   lspDef n (MkFun args exp)
      = let vs = initSVars args in
            pure $ "(defun " ++ lspName n ++ " (" ++ lspArglist vs ++ ") "
-                      ++ !(lspExp vs exp) ++ ")\n"
+                      ++ !(lspExp 0 vs exp) ++ ")\n"
   lspDef n (MkError exp)
-     = pure $ "(define (" ++ lspName n ++ " . any-args) " ++ !(lspExp [] exp) ++ ")\n"
+     = pure $ "(define (" ++ lspName n ++ " . any-args) " ++ !(lspExp 0 [] exp) ++ ")\n"
   lspDef n (MkCon t a) = pure "" -- Nothing to compile here
 
 -- Convert the name to CL code
 -- (There may be no code generated, for example if it's a constructor)
 export
-getLisp : (lspExtPrim : {vars : _} -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String) ->
+getLisp : (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String) ->
           Defs -> Name -> Core annot String
 getLisp lspExtPrim defs n
     = case lookupGlobalExact n (gamma defs) of

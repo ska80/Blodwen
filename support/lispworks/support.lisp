@@ -60,7 +60,9 @@
    #:blodwen-condition-wait-timeout
    #:blodwen-condition-signal
    #:blodwen-condition-broadcast
-   #:blodwen-sleep))
+   #:blodwen-sleep
+
+   #:blodwen-args))
 
 (in-package #:blodwen-rts)
 
@@ -525,3 +527,10 @@
 
 (defun blodwen-sleep (s)
   (sleep s))
+
+(defun blodwen-args ()
+  (labels ((build-args (args)
+             (if (endp args)
+                 (vector 0 '())
+                 (vector 1 '() (car args) (build-args (cdr args))))))
+    (build-args sys:*line-arguments-list*)))
