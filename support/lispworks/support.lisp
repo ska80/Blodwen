@@ -66,13 +66,23 @@
 
 (in-package #:blodwen-rts)
 
-(declaim (optimize speed (safety 1) (debug 1)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *global-optimize-settings*
+    '(optimize speed (safety 1) (debug 1)))
+
+  (defparameter *optimize-settings*
+    '(optimize speed (safety 0) (debug 1)))
+
+  (defparameter *optimize-float-settings*
+    '(optimize speed (safety 0) (debug 1) (float 0))))
+
+(declaim #.*global-optimize-settings*)
 
 (setq *read-default-float-format* 'double-float)
 
 (declaim (ftype (function (simple-vector) list) blodwen-read-args))
 (defun blodwen-read-args (desc)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type simple-vector desc))
   (case (svref desc 0)
     ((0) '())
@@ -80,55 +90,62 @@
                (blodwen-read-args (svref desc 3))))))
 
 (defun b+ (x y bits)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (mod (+ x y) (expt 2 bits)))
 
 (defun b- (x y bits)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (mod (- x y) (expt 2 bits)))
 
 (defun b* (x y bits)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (mod (* x y) (expt 2 bits)))
 
 (defun b/ (x y bits)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (mod (/ x y) (expt 2 bits)))
+
+(defun destroy-prefix (string)
+  (if (and (< 0 (length string))
+           (char= (char string 0) #\#))
+      ""
+      string))
 
 (defun cast-string-int (x)
   (handler-case
-      (parse-integer x)
+      (values
+       (parse-integer (destroy-prefix x)))
     (parse-error ()
       0)))
 
 (defun cast-string-double (x)
   (handler-case
-      (hcl:parse-float x)
+      (hcl:parse-float (destroy-prefix x))
     (parse-error ()
       0.0d0)))
 
 (declaim (ftype (function ((or symbol string) string) string) string-cons))
 (defun string-cons (x y)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type (or symbol string) x)
            (type string y))
   (lw:string-append x y))
 
 (declaim (ftype (function (string string) string) string-append))
 (defun string-append (x y)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type string x y))
   (lw:string-append x y))
 
 (declaim (ftype (function (string) string) string-reverse))
 (defun string-reverse (x)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type string x))
   (reverse x))
 
 (declaim (ftype (function (fixnum fixnum string) string) string-substr))
 (defun string-substr (off len s)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type fixnum off len)
            (type string s))
   (let* ((l (length s))
@@ -140,16 +157,16 @@
 
 (declaim (ftype (function (simple-vector) t) get-tag))
 (defun get-tag (x)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type simple-vector x))
   (svref x 0))
 
 (defun either-left (x)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (vector 0 nil nil x))
 
 (defun either-right (x)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (vector 1 nil nil x))
 
 ;;; Delay/Force
@@ -164,7 +181,7 @@
 
 (declaim (ftype (function (t) simple-vector) box))
 (defun box (v)
-  (declare (optimize speed (safety 0) (debug 1)))
+  (declare #.*optimize-settings*)
   (make-array 1
               :element-type t
               :initial-element v
@@ -172,13 +189,13 @@
 
 (declaim (ftype (function (simple-vector) t) unbox))
 (defun unbox (box)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type simple-vector box))
   (aref box 0))
 
 (declaim (ftype (function (simple-vector t) t) set-box))
 (defun set-box (box v)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type simple-vector box))
   (setf (aref box 0) v))
 
@@ -189,7 +206,7 @@
 
 (declaim (ftype (function (fixnum) byte-vector) blodwen-new-buffer))
 (defun blodwen-new-buffer (size)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type fixnum size))
   (make-array size
               :element-type '(unsigned-byte 8)
@@ -198,13 +215,13 @@
 
 (declaim (ftype (function (byte-vector) fixnum) blodwen-buffer-size))
 (defun blodwen-buffer-size (buf)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf))
   (length buf))
 
 (declaim (ftype (function (byte-vector fixnum (unsigned-byte 8)) (unsigned-byte 8)) blodwen-buffer-setbyte))
 (defun blodwen-buffer-setbyte (buf loc val)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc)
            (type (unsigned-byte 8) val))
@@ -212,7 +229,7 @@
 
 (declaim (ftype (function (byte-vector fixnum) (unsigned-byte 8)) blodwen-buffer-getbyte))
 (defun blodwen-buffer-getbyte (buf loc)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc))
   (aref buf loc))
@@ -220,7 +237,7 @@
 (declaim (inline write-8-bytes)
          (ftype (function (byte-vector (unsigned-byte 64))) write-8-bytes))
 (defun write-8-bytes (buf start integer)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum start)
            (type (unsigned-byte 64) integer))
@@ -235,7 +252,7 @@
 
 (declaim (ftype (function (byte-vector fixnum (signed-byte 64)) (signed-byte 64)) blodwen-buffer-setint))
 (defun blodwen-buffer-setint (buf loc val)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc)
            (type (signed-byte 64) val))
@@ -246,7 +263,7 @@
 (declaim (inline read-4-bytes)
          (ftype (function (byte-vector fixnum) (unsigned-byte 32)) read-4-bytes))
 (defun read-4-bytes (buf start)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum start))
   (let ((1-byte (aref buf start))
@@ -262,7 +279,7 @@
 (declaim (inline read-8-bytes)
          (ftype (function (byte-vector fixnum) (unsigned-byte 64)) read-8-bytes))
 (defun read-8-bytes (buf start)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum start))
   (logior (ash (read-4-bytes buf start) 32)
@@ -270,7 +287,7 @@
 
 (declaim (ftype (function (byte-vector fixnum) (signed-byte 64)) blodwen-buffer-getint))
 (defun blodwen-buffer-getint (buf loc)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc))
   (let ((byte
@@ -280,7 +297,7 @@
 
 (declaim (ftype (function (double-float) (unsigned-byte 64)) encode-float64))
 (defun encode-float64 (float)
-  (declare (optimize speed (safety 0) (debug 1) (float 0))
+  (declare #.*optimize-float-settings*
            (type double-float float))
   (multiple-value-bind (sign significand exponent)
       (multiple-value-bind (significand exponent sign)
@@ -311,7 +328,7 @@
 
 (declaim (ftype (function ((unsigned-byte 64)) double-float) decode-float64))
 (defun decode-float64 (bits)
-  (declare (optimize speed (safety 0) (debug 1) (float 0))
+  (declare #.*optimize-float-settings*
            (type (unsigned-byte 64) bits))
   (let ((sign (ldb (byte 1 63) bits))
         (exponent (ldb (byte 11 52) bits))
@@ -327,7 +344,7 @@
 
 (declaim (ftype (function (byte-vector fixnum double-float) double-float) blodwen-buffer-setdouble))
 (defun blodwen-buffer-setdouble (buf loc val)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc)
            (type double-float val))
@@ -336,14 +353,14 @@
 
 (declaim (ftype (function (byte-vector fixnum) double-float) blodwen-buffer-getdouble))
 (defun blodwen-buffer-getdouble (buf loc)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc))
   (decode-float64 (read-8-bytes buf loc)))
 
 (declaim (ftype (function (byte-vector fixnum string) string) blodwen-buffer-setstring))
 (defun blodwen-buffer-setstring (buf loc val)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc)
            (type string val))
@@ -353,7 +370,7 @@
 
 (declaim (ftype (function (byte-vector fixnum fixnum) string) blodwen-buffer-getstring))
 (defun blodwen-buffer-getstring (buf loc len)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc len))
   (ef:decode-external-string buf :utf-8
@@ -362,7 +379,7 @@
 
 (declaim (ftype (function (stream byte-vector fixnum fixnum) byte-vector) blodwen-readbuffer))
 (defun blodwen-readbuffer (h buf loc max)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc max))
   (read-sequence buf h :start loc :end (the fixnum (+ loc max)))
@@ -370,7 +387,7 @@
 
 (declaim (ftype (function (stream byte-vector fixnum fixnum) string) blodwen-writebuffer))
 (defun blodwen-writebuffer (h buf loc max)
-  (declare (optimize speed (safety 0) (debug 1))
+  (declare #.*optimize-settings*
            (type byte-vector buf)
            (type fixnum loc max))
   (write-sequence buf h :start loc :end (the fixnum (+ loc max))))

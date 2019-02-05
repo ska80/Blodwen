@@ -63,12 +63,15 @@ export
 lspConstructor : Int -> List String -> String
 lspConstructor t args = "(vector " ++ show t ++ " " ++ showSep " " args ++ ")"
 
+||| Generate lisp for a plain function
 op : String -> List String -> String
 op o args = "(" ++ o ++ " " ++ showSep " " args ++ ")"
 
+||| Generate lisp for a boolean operation
 boolop : String -> List String -> String
 boolop o args = "(or (and " ++ op o args ++ " 1) 0)"
 
+||| Generate lisp for a primitive function
 lspOp : PrimFn arity -> Vect arity String -> String
 lspOp (Add IntType) [x, y] = op "b+" [x, y, "63"]
 lspOp (Sub IntType) [x, y] = op "b-" [x, y, "63"]
@@ -122,6 +125,7 @@ lspOp (Cast IntType CharType) [x] = op "code-char" [x]
 
 lspOp (Cast from to) [x] = "(error \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
+||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | LispCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
@@ -144,6 +148,7 @@ Show ExtPrim where
   show WriteIORef = "WriteIORef"
   show (Unknown n) = "Unknown " ++ show n
 
+||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
     = cond [(n == UN "prim__lispCall", LispCall),
