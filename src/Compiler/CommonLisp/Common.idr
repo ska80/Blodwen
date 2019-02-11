@@ -125,6 +125,8 @@ lspOp (Cast IntType CharType) [x] = op "code-char" [x]
 
 lspOp (Cast from to) [x] = "(error \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
+lspOp BelieveMe [_,_,x] = x
+
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | LispCall | PutStr | GetStr
