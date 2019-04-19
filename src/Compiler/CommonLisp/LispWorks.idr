@@ -26,8 +26,8 @@ firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 findLispWorks : IO String
 findLispWorks
     = do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["lw"]]
-         maybe (pure "/usr/bin/env lw") pure e
+                                    x <- ["lispworks", "lw"]]
+         maybe (pure "/usr/bin/env lispworks") pure e
 
 findLibs : List String -> List String
 findLibs = mapMaybe (isLib . trim)
