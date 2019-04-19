@@ -323,7 +323,7 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
            pure $ "(defun " ++ lspName n ++ " (" ++ lspArglist vs ++ ") "
                       ++ !(lspExp 0 vs exp) ++ ")\n"
   lspDef n (MkError exp)
-     = pure $ "(define (" ++ lspName n ++ " . any-args) " ++ !(lspExp 0 [] exp) ++ ")\n"
+     = pure $ "(defun " ++ lspName n ++ " (&rest args) " ++ !(lspExp 0 [] exp) ++ ")\n"
   lspDef n (MkCon t a) = pure "" -- Nothing to compile here
 
 -- Convert the name to lisp code

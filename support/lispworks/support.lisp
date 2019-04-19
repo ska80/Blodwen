@@ -172,9 +172,13 @@
 ;;; Delay/Force
 
 (defmacro delay (expr)
-  `#'(lambda () ,expr))
+  `#'(lambda ()
+       (declare #.*optimize-settings*)
+       ,expr))
 
 (defun force (thunk)
+  (declare #.*optimize-settings*
+           (type function thunk))
   (funcall thunk))
 
 ;;; Box
@@ -506,44 +510,59 @@
 
 ;;; Threads
 
+(declaim (inline blodwen-thread))
 (defun blodwen-thread (p)
   (mp:process-run-function (format nil "Blodwen ~A" p) () p (vector 0)))
 
+(declaim (inline blodwen-get-thread-data))
 (defun blodwen-get-thread-data ()
   (mp:process-private-property :blodwen-thread-data))
 
+(declaim (inline blodwen-set-thread-data))
 (defun blodwen-set-thread-data (a)
   (setf (mp:process-private-property :blodwen-thread-data) a))
 
+(declaim (inline blodwen-mutex))
 (defun blodwen-mutex ()
   (mp:make-lock))
 
+(declaim (inline blodwen-lock))
 (defun blodwen-lock (m)
   (mp:process-lock m))
 
+(declaim (inline blodwen-unlock))
 (defun blodwen-unlock (m)
   (mp:process-unlock m))
 
+(declaim (inline blodwen-thisthread))
 (defun blodwen-thisthread ()
   (sys:current-thread-unique-id))
 
+(declaim (inline blodwen-condition))
 (defun blodwen-condition ()
   (mp:make-condition-variable))
 
+(declaim (inline blodwen-condition-wait))
 (defun blodwen-condition-wait (c m)
   (mp:condition-variable-wait c m))
 
+(declaim (inline blodwen-condition-wait-timeout))
 (defun blodwen-condition-wait-timeout (c m tm)
   (mp:condition-variable-wait c m :timeout tm))
 
+(declaim (inline blodwen-condition-signal))
 (defun blodwen-condition-signal (c)
   (mp:condition-variable-signal c))
 
+(declaim (inline blodwen-condition-broadcast))
 (defun blodwen-condition-broadcast (c)
   (mp:condition-variable-broadcast c))
 
+(declaim (inline blodwen-sleep))
 (defun blodwen-sleep (s)
   (sleep s))
+
+;;; Command line
 
 (defun blodwen-args ()
   (labels ((build-args (args)
