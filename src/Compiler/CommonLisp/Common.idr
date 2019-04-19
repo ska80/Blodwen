@@ -36,7 +36,7 @@ mutual
   lspGName (CaseBlock n i) = "case--" ++ lspName n ++ "-" ++ show i
   lspGName (WithBlock n i) = "with--" ++ lspName n ++ "-" ++ show i
 
--- local variable names as CL names - we need to invent new names for the locals
+-- local variable names as lisp names - we need to invent new names for the locals
 -- because there might be shadows in the original expression which can't be resolved
 -- by the same scoping rules. (e.g. something that computes \x, x => x + x where the
 -- names are the same but refer to different bindings in the scope)
@@ -132,7 +132,7 @@ lspOp (Cast from to) [x] = "(error \"Invalid cast " ++ show from ++ "->" ++ show
 
 lspOp BelieveMe [_,_,x] = x
 
-||| Extended primitives for the scheme backend, outside the standard set of primFn
+||| Extended primitives for the lisp backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | LispCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
@@ -155,7 +155,7 @@ Show ExtPrim where
   show WriteIORef = "WriteIORef"
   show (Unknown n) = "Unknown " ++ show n
 
-||| Match on a user given name to get the scheme primitive
+||| Match on a user given name to get the lisp primitive
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
     = cond [(n == UN "prim__lispCall", LispCall),
@@ -262,16 +262,15 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
     lspExp i vs CErased = pure "'()"
     lspExp i vs (CCrash msg) = pure $ "(error " ++ show msg ++ ")"
 
-  -- Need to convert the argument (a list of CL arguments that may
-  -- have been constructed at run time) to a CL list to be passed to apply
+  -- Need to convert the argument (a list of lisp arguments that may
+  -- have been constructed at run time) to a lisp list to be passed to apply
   readArgs : Int -> SVars vars -> CExp vars -> Core annot String
   readArgs i vs tm = pure $ "(blodwen-rts:blodwen-read-args " ++ !(lspExp i vs tm) ++ ")"
 
   fileOp : String -> String
   fileOp op = "(blodwen-rts:blodwen-file-op #'(lambda () " ++ op ++ "))"
 
-  -- External primitives which are common to the CL codegens (they can be
-  -- overridden)
+  -- External primitives which are common to the lisp codegens (they can be overridden)
   export
   lspExtCommon : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
   lspExtCommon i vs LispCall [ret, CPrimVal (Str fn), args, world]
@@ -327,7 +326,7 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
      = pure $ "(define (" ++ lspName n ++ " . any-args) " ++ !(lspExp 0 [] exp) ++ ")\n"
   lspDef n (MkCon t a) = pure "" -- Nothing to compile here
 
--- Convert the name to CL code
+-- Convert the name to lisp code
 -- (There may be no code generated, for example if it's a constructor)
 export
 getLisp : (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String) ->
