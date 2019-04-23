@@ -4,6 +4,9 @@
   (:use #:cl)
 
   (:export
+   #:*optimize-settings*
+   #:*optimize-float-settings*
+
    #:blodwen-read-args
 
    #:b+

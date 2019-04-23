@@ -226,7 +226,10 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
     lspExp i vs (CLam x sc)
        = do let vs' = extendSVars [x] vs
             sc' <- lspExp i vs' sc
-            pure $ "#'(lambda (" ++ lookupSVar Here vs' ++ ") " ++ sc' ++ ")"
+            let argList = lookupSVar Here vs'
+            pure $ "#'(lambda (" ++ argList ++ ") "
+                   ++ "(declare #.blodwen-rts:*optimize-settings* (ignorable "++ argList ++ ")) "
+                   ++ sc' ++ ")"
     lspExp i vs (CLet x val sc)
        = do let vs' = extendSVars [x] vs
             val' <- lspExp i vs val
@@ -248,7 +251,7 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
         = do tcode <- lspExp (i+1) vs sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(lspExp i vs v))) def
              let n = "sc" ++ show i
-             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (get-tag " ++ n ++ ") "
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (blodwen-rts:get-tag " ++ n ++ ") "
                      ++ showSep " " !(traverse (lspConAlt (i+1) vs n) alts)
                      ++ lspCaseDef defc ++ "))"
     lspExp i vs (CConstCase sc alts def)
@@ -319,11 +322,15 @@ parameters (lspExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
 
   lspDef : Name -> CDef -> Core annot String
   lspDef n (MkFun args exp)
-     = let vs = initSVars args in
-           pure $ "(defun " ++ lspName n ++ " (" ++ lspArglist vs ++ ") "
-                      ++ !(lspExp 0 vs exp) ++ ")\n"
+     = let vs = initSVars args
+           argList = lspArglist vs in
+           pure $ "(defun " ++ lspName n ++ " (" ++ argList ++ ") "
+                  ++ "(declare #.blodwen-rts:*optimize-settings* (ignorable "++ argList ++ ")) "
+                  ++ !(lspExp 0 vs exp) ++ ")\n"
   lspDef n (MkError exp)
-     = pure $ "(defun " ++ lspName n ++ " (&rest args) " ++ !(lspExp 0 [] exp) ++ ")\n"
+     = pure $ "(defun " ++ lspName n ++ " (&rest args) "
+              ++ "(declare #.blodwen-rts:*optimize-settings*) "
+              ++ !(lspExp 0 [] exp) ++ ")\n"
   lspDef n (MkCon t a) = pure "" -- Nothing to compile here
 
 -- Convert the name to lisp code

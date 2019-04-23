@@ -24,12 +24,7 @@ firstExists [] = pure Nothing
 firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
 lspHeader : String
-lspHeader
-  = "(use-package #:cl)\n\n" ++
-    "(let ()\n"
-
-lspFooter : String
-lspFooter = ")"
+lspHeader = "\n\n(in-package #:cl-user)\n\n"
 
 mutual
   lispworksPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core annot String
@@ -49,7 +44,7 @@ compileToLSP c tm outfile
          let code = concat compdefs
          main <- lspExp lispworksPrim 0 [] !(compileExp tags tm)
          support <- readDataFile "lispworks/support.lisp"
-         let lsp = lspHeader ++ support ++ code ++ main ++ lspFooter
+         let lsp = support ++ lspHeader ++ code ++ main
          Right () <- coreLift $ writeFile outfile lsp
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
